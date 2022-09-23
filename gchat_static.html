@@ -1,0 +1,109 @@
+<html>
+
+<head>
+    <meta name="robots" content="noindex" />
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <meta name="Template" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Genesys CSS https://spark.genesys.com/ -->
+    <link href="https://dhqbrvplips7x.cloudfront.net/common-ui-docs/genesys-webcomponents/3.8.1-178/genesys-webcomponents/genesys-webcomponents.css" rel="stylesheet">
+    <script type="module" src="https://dhqbrvplips7x.cloudfront.net/common-ui-docs/genesys-webcomponents/3.8.1-178/genesys-webcomponents/genesys-webcomponents.esm.js"></script>
+    <!-- Genesys SDK info https://developer.genesys.cloud/ -->
+    <script src="https://sdk-cdn.mypurecloud.com/javascript/143.0.0/purecloud-platform-client-v2.min.js"></script>
+</head>
+
+<body onload='start()'>
+
+    <script>
+        let debug = true; //localStorage.getItem('_gc_debug') //Enables user to set debug mode from browser localStorage
+        let gc_region = "mypurecloud.com.au";
+        let gc_clientId = "adc32df8-a61c-4d6d-b5e8-13a1dc74b816";
+        let gc_redirectUrl = window.location.origin // "http://localhost:8085/oauth2/callback";
+        console.log("gc_redirectUrl:", gc_redirectUrl);
+
+        let platformClient = require('platformClient');
+        const client = platformClient.ApiClient.instance;
+        const uapi = new platformClient.UsersApi();
+
+        function getParameterByName(name, url) {
+          if (!url) {
+            url = window.location.href;
+          }
+          name = name.replace(/[\[\]]/g, "\\$&");
+          var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+          results = regex.exec(url);
+          if (!results) return null;
+          if (!results[2]) return '';
+          return decodeURIComponent(results[2].replace(/\+/g, " "));
+        };
+
+        //Get conversatioId from URL query string
+        const UserConversationId = getParameterByName("conversationId");
+        console.log("UserConversationId: ", UserConversationId);
+
+        async function start() {
+
+            try {
+
+                client.setEnvironment(gc_region);
+                client.setPersistSettings(true, '_mm_');
+
+                if (debug) console.log('Logging in to Genesys Cloud');
+                await client.loginImplicitGrant(gc_clientId, gc_redirectUrl, {});
+
+                //GET Current User details including employeeId
+                let opts = { 'expand': ["employerInfo"] };
+                let user = await uapi.getUsersMe(opts);
+                console.log("User: ", user);
+                console.log("UserEmail: ", user.email);
+                console.log("UserName: ", user.name);
+                console.log("UserEmployeeId: ", user.employerInfo.employeeId);
+
+                //Enter in starting code.
+                // Web Messaging code snippet. Creates the Genesys() queue and injects the genesys.min.js script to load asynchronously
+                  (function (g, e, n, es, ys) {
+                    g['_genesysJs'] = e;
+                    g[e] = g[e] || function () {
+                      (g[e].q = g[e].q || []).push(arguments)
+                    };
+                    g[e].t = 1 * new Date();
+                    g[e].c = es;
+                    ys = document.createElement('script'); ys.async = 1; ys.src = n; ys.charset = 'utf-8'; document.head.appendChild(ys);
+                  })(window, 'Genesys', 'https://apps.mypurecloud.com.au/genesys-bootstrap/genesys.min.js', {
+                    environment: 'apse2',
+                    deploymentId: 'b6ba66bb-5055-4ad3-b788-955bba2a2caa',
+                    debug: debug // Enables Genesys browser console logging
+                  });
+
+                  //Open Messenger when Messnger Plugin is ready
+                  Genesys("subscribe", "Messenger.ready", function(o){Genesys("command", "Messenger.open")});
+
+                  //Automatically reopen Messenger if closed
+                  Genesys("subscribe", "Messenger.closed", function(o){Genesys("command", "Messenger.open")});
+
+                  //Set custom attributes to use in GC Script
+                  Genesys("command", "Database.set", {
+                    messaging: {
+                      customAttributes: {
+                        UserEmail: user.email,
+                        UserName: user.name,
+                        UserEmployeeId: user.employerInfo.employeeId,
+                        UserConversationId: UserConversationId
+                      }
+                    }
+                  });
+
+                } catch (err) {
+                console.log('Error: ', err)
+              }
+            } //End of start() function",
+
+    </script>
+
+
+</body>
+
+
+</html>
